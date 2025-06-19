@@ -3,6 +3,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Rule34Post, DownloadResult } from '../types';
 import { API_CONFIG } from '../config/categories';
+import ffmpeg from 'fluent-ffmpeg';
+import ffprobeInstaller from '@ffprobe-installer/ffprobe';
 
 export class DownloadService {
   private downloadDir: string;
@@ -50,10 +52,28 @@ export class DownloadService {
       response.data.pipe(writer);
 
       return new Promise((resolve) => {
-        writer.on('finish', () => {
+        writer.on('finish', async () => {
+          let audioChannel = undefined;
+          if (filePath.match(/\.(mp4|webm|mov|avi)$/i)) {
+            ffmpeg.setFfprobePath(ffprobeInstaller.path);
+            try {
+              const metadata = await new Promise<any>((res, rej) => {
+                ffmpeg.ffprobe(filePath, (err, data) => {
+                  if (err) rej(err);
+                  else res(data);
+                });
+              });
+              audioChannel = Array.isArray(metadata.streams)
+                ? metadata.streams.some((s: any) => s.codec_type === 'audio')
+                : false;
+            } catch {
+              audioChannel = false;
+            }
+          }
           resolve({
             success: true,
-            filePath: filePath
+            filePath: filePath,
+            audioChannel
           });
         });
 
