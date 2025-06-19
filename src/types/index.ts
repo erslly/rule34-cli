@@ -45,4 +45,5 @@ export interface DownloadResult {
   success: boolean;
   filePath?: string;
   error?: string;
+  audioChannel?: boolean;
 }
