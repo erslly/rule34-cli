@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Rule34App } from './app';
 
 async function main() {
