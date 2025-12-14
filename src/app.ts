@@ -106,18 +106,13 @@ export class Rule34App {
   private displayPostInfo(post: Rule34Post): void {
     this.menuService.showInfo(`Bulunan içerik: ${post.file_url}`);
     this.menuService.showInfo(`Boyut: ${post.width}x${post.height}`);
-    this.menuService.showInfo(`Etiketler: ${post.tags}`);
   }
 
   private async downloadPost(post: Rule34Post, downloadType: 'image' | 'video'): Promise<void> {
-    const spinner = ora('Dosya indiriliyor...').start();
-
     try {
       const result = downloadType === 'video'
         ? await this.downloadService.downloadVideo(post)
         : await this.downloadService.downloadPost(post);
-
-      spinner.stop();
 
       if (result.success) {
         this.menuService.showSuccess(`Dosya başarıyla indirildi: ${result.filePath}`);
@@ -126,7 +121,6 @@ export class Rule34App {
         this.menuService.showError(`İndirme hatası: ${result.error}`);
       }
     } catch (error) {
-      spinner.stop();
       throw error;
     }
   }

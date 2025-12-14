@@ -5,6 +5,8 @@ import { Rule34Post, DownloadResult } from '../types';
 import { API_CONFIG } from '../config/categories';
 import ffmpeg from 'fluent-ffmpeg';
 import ffprobeInstaller from '@ffprobe-installer/ffprobe';
+import cliProgress from 'cli-progress';
+import chalk from 'chalk';
 
 export class DownloadService {
   private downloadDir: string;
@@ -30,16 +32,22 @@ export class DownloadService {
     const extension = this.getFileExtension(post.file_url);
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 8);
-    
+
     return `rule34_${post.id}_${timestamp}_${randomId}${extension}`;
+  }
+
+  private formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   }
 
   async downloadPost(post: Rule34Post): Promise<DownloadResult> {
     try {
       const filename = this.generateFilename(post);
       const filePath = path.join(this.downloadDir, filename);
-
-      console.log(`İndiriliyor: ${post.file_url}`);
 
       const response = await axios({
         method: 'GET',
@@ -48,11 +56,37 @@ export class DownloadService {
         timeout: 60000
       });
 
+      const totalLength = parseInt(response.headers['content-length'] || '0', 10);
+      let downloadedLength = 0;
+
+      const progressBar = new cliProgress.SingleBar({
+        format: chalk.cyan('İndiriliyor |') + chalk.green('{bar}') + chalk.cyan('| {percentage}% | {downloaded}/{total}'),
+        barCompleteChar: '\u2588',
+        barIncompleteChar: '\u2591',
+        hideCursor: true
+      });
+
+      progressBar.start(totalLength, 0, {
+        downloaded: this.formatBytes(0),
+        total: this.formatBytes(totalLength)
+      });
+
       const writer = fs.createWriteStream(filePath);
+
+      response.data.on('data', (chunk: Buffer) => {
+        downloadedLength += chunk.length;
+        progressBar.update(downloadedLength, {
+          downloaded: this.formatBytes(downloadedLength),
+          total: this.formatBytes(totalLength)
+        });
+      });
+
       response.data.pipe(writer);
 
       return new Promise((resolve) => {
         writer.on('finish', async () => {
+          progressBar.stop();
+
           let audioChannel = undefined;
           if (filePath.match(/\.(mp4|webm|mov|avi)$/i)) {
             ffmpeg.setFfprobePath(ffprobeInstaller.path);
@@ -78,6 +112,7 @@ export class DownloadService {
         });
 
         writer.on('error', (error) => {
+          progressBar.stop();
           resolve({
             success: false,
             error: error.message
