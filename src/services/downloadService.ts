@@ -10,10 +10,23 @@ import chalk from 'chalk';
 
 export class DownloadService {
   private downloadDir: string;
+  private categoryName?: string;
 
-  constructor(downloadDir: string = API_CONFIG.DOWNLOAD_DIR) {
-    this.downloadDir = downloadDir;
+  constructor(categoryName?: string, baseDir: string = API_CONFIG.DOWNLOAD_DIR) {
+    this.categoryName = categoryName;
+    this.downloadDir = this.buildDownloadPath(baseDir);
     this.ensureDownloadDir();
+  }
+
+  private buildDownloadPath(baseDir: string): string {
+    if (this.categoryName) {
+      const normalizedCategory = this.categoryName
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+        .replace(/[^a-z0-9_]/g, '');
+      return path.join(baseDir, normalizedCategory);
+    }
+    return baseDir;
   }
 
   private ensureDownloadDir(): void {
@@ -107,7 +120,9 @@ export class DownloadService {
           resolve({
             success: true,
             filePath: filePath,
-            audioChannel
+            audioChannel,
+            fileSize: totalLength,
+            post: post
           });
         });
 

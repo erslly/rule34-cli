@@ -1,5 +1,6 @@
 import inquirer from 'inquirer';
 import chalk from 'chalk';
+import boxen from 'boxen';
 import { CATEGORIES } from '../config/categories';
 
 export class MenuService {
@@ -10,17 +11,17 @@ export class MenuService {
     console.log(chalk.cyan('║                    Rule 34 Video Downloader                     ║'));
     console.log(chalk.cyan('╚═════════════════════════════════════════════════════════════════╝'));
     console.log();
-}
+  }
 
 
   showCategories(): void {
     console.log(chalk.yellow('📁 Kategoriler:'));
     console.log();
-    
+
     CATEGORIES.forEach(category => {
       console.log(chalk.green(`${category.id}. ${category.name}`));
     });
-    
+
     console.log(chalk.red('0. Çıkış'));
     console.log();
   }
@@ -30,11 +31,11 @@ export class MenuService {
       {
         type: 'input',
         name: 'category',
-        message: 'Kategori seçin (0-9):',
+        message: 'Kategori seçin (0-11):',
         validate: (input) => {
           const num = parseInt(input);
-          if (isNaN(num) || num < 0 || num > 9) {
-            return 'Lütfen 0-9 arasında bir sayı girin!';
+          if (isNaN(num) || num < 0 || num > 11) {
+            return 'Lütfen 0-11 arasında bir sayı girin!';
           }
           return true;
         }
@@ -73,6 +74,44 @@ export class MenuService {
     return answer.type;
   }
 
+  async getBatchCount(): Promise<number> {
+    const answer = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'count',
+        message: chalk.cyan('❯') + ' Kaç adet dosya indirmek istersiniz? (1-50):',
+        default: '1',
+        validate: (input) => {
+          const num = parseInt(input);
+          if (isNaN(num) || num < 1 || num > 50) {
+            return chalk.red('✗ Lütfen 1-50 arasında bir sayı girin!');
+          }
+          return true;
+        }
+      }
+    ]);
+
+    return parseInt(answer.count);
+  }
+
+  async getCustomTags(): Promise<string> {
+    const answer = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'tags',
+        message: chalk.cyan('❯') + ' Etiketleri girin (boşlukla ayırın):',
+        validate: (input) => {
+          if (!input || input.trim().length === 0) {
+            return chalk.red('✗ En az bir etiket girmelisiniz!');
+          }
+          return true;
+        }
+      }
+    ]);
+
+    return answer.tags.trim();
+  }
+
   showSuccess(message: string): void {
     console.log(chalk.green(`✅ ${message}`));
   }
@@ -97,5 +136,67 @@ export class MenuService {
         message: 'Devam etmek için Enter\'a basın...'
       }
     ]);
+  }
+
+  showStats(stats: any, statsService: any): void {
+    console.clear();
+
+    const box = boxen(
+      chalk.bold.cyan('📊 İNDİRME İSTATİSTİKLERİ'),
+      {
+        padding: 1,
+        margin: 1,
+        borderStyle: 'double',
+        borderColor: 'cyan',
+        align: 'center'
+      }
+    );
+
+    console.log(box);
+
+    if (stats.totalDownloads === 0) {
+      console.log(chalk.yellow('\n  Henüz indirme yapılmamış.\n'));
+      return;
+    }
+
+    console.log(chalk.bold.green('  📦 Genel Bilgiler:'));
+    console.log(chalk.dim('  ' + '─'.repeat(50)));
+    console.log(chalk.white(`  Toplam İndirme: ${chalk.bold.cyan(stats.totalDownloads)} dosya`));
+    console.log(chalk.white(`  Toplam Boyut: ${chalk.bold.cyan(statsService.formatBytes(stats.totalSize))}`));
+
+    if (stats.firstDownload) {
+      console.log(chalk.white(`  İlk İndirme: ${chalk.dim(statsService.getRelativeTime(stats.firstDownload))}`));
+    }
+    if (stats.lastDownload) {
+      console.log(chalk.white(`  Son İndirme: ${chalk.dim(statsService.getRelativeTime(stats.lastDownload))}`));
+    }
+
+    console.log(chalk.bold.yellow('\n  🏆 Kategori Dağılımı:'));
+    console.log(chalk.dim('  ' + '─'.repeat(50)));
+
+    const sortedCategories = Object.entries(stats.categoryStats)
+      .sort((a: any, b: any) => b[1] - a[1])
+      .slice(0, 5);
+
+    sortedCategories.forEach(([category, count]: any, index) => {
+      const percentage = ((count / stats.totalDownloads) * 100).toFixed(1);
+      const barLength = Math.floor((count / stats.totalDownloads) * 20);
+      const bar = '█'.repeat(barLength) + '░'.repeat(20 - barLength);
+
+      console.log(chalk.white(`  ${index + 1}. ${category.padEnd(15)} ${chalk.green(bar)} ${chalk.bold(count)} (${percentage}%)`));
+    });
+
+    console.log(chalk.bold.magenta('\n  📸 Tip Dağılımı:'));
+    console.log(chalk.dim('  ' + '─'.repeat(50)));
+
+    const imageCount = stats.typeStats.image || 0;
+    const videoCount = stats.typeStats.video || 0;
+    const imagePercentage = ((imageCount / stats.totalDownloads) * 100).toFixed(1);
+    const videoPercentage = ((videoCount / stats.totalDownloads) * 100).toFixed(1);
+
+    console.log(chalk.white(`  Resim: ${chalk.bold.cyan(imageCount)} (${imagePercentage}%)`));
+    console.log(chalk.white(`  Video: ${chalk.bold.cyan(videoCount)} (${videoPercentage}%)`));
+
+    console.log();
   }
 }

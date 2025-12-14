@@ -2,3 +2,4 @@
 /downloads
 .env
 /dist
+stats.json

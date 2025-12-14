@@ -25,14 +25,14 @@ export interface Rule34Post {
 }
 
 export interface ApiResponse {
-    posts?: Rule34Post[];
-    const?: number;
+  posts?: Rule34Post[];
+  const?: number;
 }
 
 export interface Category {
-    id: number;
-    name: string;
-    tags: string[];
+  id: number;
+  name: string;
+  tags: string[];
 }
 
 export interface DownloadOptions {
@@ -46,4 +46,34 @@ export interface DownloadResult {
   filePath?: string;
   error?: string;
   audioChannel?: boolean;
+  fileSize?: number;
+  post?: Rule34Post;
+}
+
+export interface BatchDownloadResult {
+  total: number;
+  successful: number;
+  failed: number;
+  downloads: DownloadResult[];
+}
+
+export interface DownloadRecord {
+  id: number;
+  category: string;
+  type: 'image' | 'video';
+  size: number;
+  width: number;
+  height: number;
+  timestamp: string;
+  filePath: string;
+}
+
+export interface Stats {
+  downloads: DownloadRecord[];
+  totalDownloads: number;
+  totalSize: number;
+  firstDownload?: string;
+  lastDownload?: string;
+  categoryStats: { [key: string]: number };
+  typeStats: { image: number; video: number };
 }
