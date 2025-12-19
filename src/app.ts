@@ -73,7 +73,7 @@ export class Rule34App {
   }
 
   private async handleCustomTagSearch(): Promise<void> {
-    const customTags = await this.menuService.getCustomTags();
+    const customTags = await this.menuService.getCustomTagsWithSuggestions(this.apiService);
     this.menuService.showInfo(`Etiketler: ${customTags}`);
 
     const downloadType = await this.menuService.getDownloadType();

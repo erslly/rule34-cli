@@ -113,4 +113,24 @@ export class ApiService {
       return null;
     }
   }
+
+  async suggestTags(term: string): Promise<string[]> {
+    try {
+      const response = await axios.get('https://ac.rule34.xxx/autocomplete.php', {
+        params: { q: term },
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': 'https://rule34.xxx/'
+        }
+      });
+
+      if (response.status === 200 && Array.isArray(response.data)) {
+        return response.data.map((item: any) => item.value);
+      }
+      return [];
+    } catch (error) {
+      console.error('etiket onerisi alinamadi:', error);
+      return [];
+    }
+  }
 }

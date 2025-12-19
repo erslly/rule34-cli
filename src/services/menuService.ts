@@ -1,6 +1,7 @@
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 import boxen from 'boxen';
+import ora from 'ora';
 import { CATEGORIES } from '../config/categories';
 
 export class MenuService {
@@ -126,6 +127,71 @@ export class MenuService {
 
   showInfo(message: string): void {
     console.log(chalk.blue(`ℹ️  ${message}`));
+  }
+
+  async getCustomTagsWithSuggestions(apiService: any): Promise<string> {
+    const selectedTags: string[] = [];
+
+    while (true) {
+      this.showHeader();
+      if (selectedTags.length > 0) {
+        console.log(chalk.cyan('  Seçilen etiketler: ') + chalk.bold.yellow(selectedTags.join(' ')) + '\n');
+      }
+
+      const { searchTerm } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'searchTerm',
+          message: chalk.cyan('❯') + ' Aramak istediğin kelimeyi gir (Bitirmek için boş bırak):',
+        }
+      ]);
+
+      if (!searchTerm) {
+        if (selectedTags.length > 0) return selectedTags.join(' ');
+        return this.getCustomTags();
+      }
+
+      const spinner = ora('Hemen bakıyorum...').start();
+      const suggestions = await apiService.suggestTags(searchTerm.trim());
+      spinner.stop();
+
+      if (suggestions.length === 0) {
+        this.showWarning('Öneri bulamadım, başka bir kelime dene.');
+        await this.pressEnterToContinue();
+        continue;
+      }
+
+      const { choice } = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'choice',
+          message: 'İstediğin etiketi seç (Enter):',
+          choices: [
+            ...suggestions.map((tag: string) => ({ name: tag, value: tag })),
+            { name: chalk.dim('⬅ Geri / Vazgeç'), value: 'BACK' }
+          ]
+        }
+      ]);
+
+      if (choice !== 'BACK') {
+        if (!selectedTags.includes(choice)) {
+          selectedTags.push(choice);
+        }
+
+        const { addMore } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'addMore',
+            message: 'Yanına başka etiket de eklemek ister misin?',
+            default: false
+          }
+        ]);
+
+        if (!addMore) break;
+      }
+    }
+
+    return selectedTags.join(' ');
   }
 
   async pressEnterToContinue(): Promise<void> {
