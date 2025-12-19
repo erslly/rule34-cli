@@ -11,29 +11,29 @@ cd rule34-cli
 
 ### 2. Bağımlılıkları yükleyin
 ```bash
-npm install
+pnpm install
 ```
 
 ### 3. TypeScript'i derleyin
 ```bash
-npm run build
+pnpm build
 ```
 
 ##   Kullanım
 
 ### Development modunda çalıştırma
 ```bash
-npm run dev
+pnpm dev
 ```
 
 ### Production modunda çalıştırma
 ```bash
-npm start
+pnpm start
 ```
 
 ### Watch modunda çalıştırma (otomatik derleme)
 ```bash
-npm run watch
+pnpm watch
 ```
 
 
@@ -60,9 +60,9 @@ export const CATEGORIES: Category[] = [
 
 ```json
 {
-  "build": "tsc",              // TypeScript derle
+  "build": "pnpm tsc",           // TypeScript derle
   "start": "node dist/index.js", // Uygulamayı çalıştır
   "dev": "ts-node src/index.ts", // Development mode
-  "watch": "tsc -w"             // Watch mode
+  "watch": "tsc -w"              // Watch mode
 }
 ```
