@@ -5,21 +5,21 @@ import ora from 'ora';
 import { CATEGORIES } from '../config/categories';
 
 export class MenuService {
-  showHeader(): void {
+  showHeader(source: string = 'Rule34'): void {
     console.clear();
     console.log(chalk.cyan('╔═════════════════════════════════════════════════════════════════╗'));
     console.log(chalk.cyan('║           https://github.com/erslly/rule34-cli                  ║'));
-    console.log(chalk.cyan('║                    Rule 34 Video Downloader                     ║'));
+    console.log(chalk.cyan(`║                    ${source.padEnd(20)}                         ║`));
     console.log(chalk.cyan('╚═════════════════════════════════════════════════════════════════╝'));
     console.log();
   }
 
 
-  showCategories(): void {
+  showCategories(categories: any[] = CATEGORIES): void {
     console.log(chalk.yellow('📁 Kategoriler:'));
     console.log();
 
-    CATEGORIES.forEach(category => {
+    categories.forEach(category => {
       console.log(chalk.green(`${category.id}. ${category.name}`));
     });
 
@@ -27,16 +27,37 @@ export class MenuService {
     console.log();
   }
 
-  async getCategoryChoice(): Promise<number> {
+  async getSourceChoice(): Promise<'rule34' | 'phub'> {
+    const answer = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'source',
+        message: 'Kaynak seçin:',
+        choices: [
+          { name: 'rule34', value: 'rule34' },
+          { name: 'phub', value: 'phub' }
+        ]
+      }
+    ]);
+
+    return answer.source;
+  }
+
+  async getCategoryChoice(maxSpecial: number = 99, numCategories: number = 24): Promise<number> {
     const answer = await inquirer.prompt([
       {
         type: 'input',
         name: 'category',
-        message: 'Kategori seçin (0-11):',
+        message: `Kategori seçin (0-${numCategories} veya Özel Seçenekler):`,
         validate: (input) => {
           const num = parseInt(input);
-          if (isNaN(num) || num < 0 || num > 11) {
-            return 'Lütfen 0-11 arasında bir sayı girin!';
+          if (isNaN(num)) return 'Lütfen bir sayı girin!';
+
+          const isValidCategory = num >= 0 && num <= numCategories;
+          const isValidSpecial = num === 98 || num === 99;
+
+          if (!isValidCategory && !isValidSpecial) {
+            return `Lütfen 0-${numCategories} arası veya özel seçenekleri (98, 99) girin!`;
           }
           return true;
         }

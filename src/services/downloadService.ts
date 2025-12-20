@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Rule34Post, DownloadResult } from '../types';
+import { Post, DownloadResult } from '../types';
 import { API_CONFIG } from '../config/categories';
 import ffmpeg from 'fluent-ffmpeg';
 import ffprobeInstaller from '@ffprobe-installer/ffprobe';
@@ -36,17 +36,24 @@ export class DownloadService {
   }
 
   private getFileExtension(url: string): string {
-    const urlPath = new URL(url).pathname;
-    const extension = path.extname(urlPath);
-    return extension || '.jpg';
+    try {
+      if (!url) return '.jpg';
+      const urlPath = new URL(url).pathname;
+      const extension = path.extname(urlPath);
+      return extension || '.jpg';
+    } catch (error) {
+      const match = url.match(/\.[a-z0-9]+($|\?)/i);
+      return match ? match[0].replace('?', '') : '.jpg';
+    }
   }
 
-  private generateFilename(post: Rule34Post): string {
+  private generateFilename(post: Post): string {
     const extension = this.getFileExtension(post.file_url);
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).substring(2, 8);
 
-    return `rule34_${post.id}_${timestamp}_${randomId}${extension}`;
+    const prefix = post.source === 'phub' ? 'phub' : 'rule34';
+    return `${prefix}_${post.id}_${timestamp}_${randomId}${extension}`;
   }
 
   private formatBytes(bytes: number): string {
@@ -57,8 +64,11 @@ export class DownloadService {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
   }
 
-  async downloadPost(post: Rule34Post): Promise<DownloadResult> {
+  async downloadPost(post: Post): Promise<DownloadResult> {
     try {
+      if (!post.file_url) {
+        throw new Error('Dosya URL\'si boş!');
+      }
       const filename = this.generateFilename(post);
       const filePath = path.join(this.downloadDir, filename);
 
@@ -143,7 +153,7 @@ export class DownloadService {
     }
   }
 
-  async downloadVideo(post: Rule34Post): Promise<DownloadResult> {
+  async downloadVideo(post: Post): Promise<DownloadResult> {
     if (!post.file_url.match(/\.(mp4|webm|mov|avi)$/i)) {
       return {
         success: false,

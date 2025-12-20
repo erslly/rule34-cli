@@ -1,24 +1,30 @@
 import ora from 'ora';
 import chalk from 'chalk';
 import { ApiService } from './services/apiService';
+import { PhubService } from './services/phubService';
 import { DownloadService } from './services/downloadService';
 import { MenuService } from './services/menuService';
 import { StatsService } from './services/statsService';
-import { CATEGORIES } from './config/categories';
-import { Rule34Post, DownloadResult, DownloadRecord } from './types';
+import { CATEGORIES, PHUB_CATEGORIES } from './config/categories';
+import { Rule34Post, DownloadResult, DownloadRecord, Source, Post } from './types';
 
 export class Rule34App {
   private apiService: ApiService;
+  private phubService: PhubService;
   private menuService: MenuService;
   private statsService: StatsService;
+  private currentSource: Source = 'rule34';
 
   constructor() {
     this.apiService = new ApiService();
+    this.phubService = new PhubService();
     this.menuService = new MenuService();
     this.statsService = new StatsService();
   }
 
   async run(): Promise<void> {
+    this.currentSource = await this.menuService.getSourceChoice();
+
     while (true) {
       try {
         const shouldExit = await this.handleMainMenu();
@@ -31,31 +37,37 @@ export class Rule34App {
   }
 
   private async handleMainMenu(): Promise<boolean> {
-    this.menuService.showHeader();
-    this.menuService.showCategories();
+    const sourceName = this.currentSource === 'rule34' ? 'Rule34.xxx' : 'PHub (Nekobot)';
+    const categories = this.currentSource === 'rule34' ? CATEGORIES : PHUB_CATEGORIES;
 
-    console.log('  ' + chalk.magenta.bold('10. İstatistikler 📊'));
-    console.log('  ' + chalk.cyan.bold('11. Özel Tag Arama 🔍'));
+    this.menuService.showHeader(sourceName);
+    this.menuService.showCategories(categories);
+
+    console.log('  ' + chalk.magenta.bold('98. İstatistikler 📊'));
+    if (this.currentSource === 'rule34') {
+      console.log('  ' + chalk.cyan.bold('99. Özel Tag Arama 🔍'));
+    }
     console.log();
 
-    const choice = await this.menuService.getCategoryChoice();
+    const maxChoice = this.currentSource === 'rule34' ? 99 : 98;
+    const choice = await this.menuService.getCategoryChoice(maxChoice, categories.length);
 
     if (choice === 0) {
       this.menuService.showInfo('Çıkış yapılıyor...');
       return true;
     }
 
-    if (choice === 10) {
+    if (choice === 98) {
       await this.showStatistics();
       return false;
     }
 
-    if (choice === 11) {
+    if (choice === 99 && this.currentSource === 'rule34') {
       await this.handleCustomTagSearch();
       return false;
     }
 
-    const selectedCategory = CATEGORIES.find(cat => cat.id === choice);
+    const selectedCategory = categories.find(cat => cat.id === choice);
     if (!selectedCategory) {
       this.menuService.showError('Geçersiz kategori!');
       await this.menuService.pressEnterToContinue();
@@ -92,11 +104,18 @@ export class Rule34App {
   private async handleCategorySelection(categoryName: string, tags: string[]): Promise<void> {
     this.menuService.showInfo(`Seçilen kategori: ${categoryName}`);
 
-    const downloadType = await this.menuService.getDownloadType();
+    let downloadType: 'image' | 'video' = 'image';
+
+    if (this.currentSource === 'rule34') {
+      downloadType = await this.menuService.getDownloadType();
+    } else {
+      this.menuService.showInfo('PHub içeriği hazırlanıyor...');
+    }
+
     const batchCount = await this.menuService.getBatchCount();
 
     const confirmed = await this.menuService.getConfirmation(
-      `${batchCount} adet ${downloadType === 'video' ? 'video' : 'resim'} indirmek istiyor musunuz?`
+      `${batchCount} adet içerik indirmek istiyor musunuz?`
     );
 
     if (!confirmed) return;
@@ -110,7 +129,7 @@ export class Rule34App {
     downloadType: 'image' | 'video',
     count: number
   ): Promise<void> {
-    const downloadService = new DownloadService(categoryName);
+    const downloadService = new DownloadService(categoryName || 'General');
     const results: DownloadResult[] = [];
     const downloadedIds = new Set<number>();
 
@@ -128,7 +147,7 @@ export class Rule34App {
       }
 
       downloadedIds.add(post.id);
-      console.log(chalk.dim(`[${i + 1}/${count}] ID: ${post.id} | ${post.width}x${post.height}`));
+      console.log(chalk.dim(`[${i + 1}/${count}] ID: ${post.id}`));
 
       try {
         const result = downloadType === 'video'
@@ -169,15 +188,24 @@ export class Rule34App {
     tags: string[],
     downloadType: 'image' | 'video',
     downloadedIds: Set<number>
-  ): Promise<Rule34Post | null> {
+  ): Promise<Post | null> {
     const maxAttempts = 10;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         const searchTags = tags.join(' ');
-        const post = downloadType === 'video'
-          ? await this.apiService.getVideoPost(searchTags)
-          : await this.apiService.getRandomPost(searchTags);
+        let post: Post | null = null;
+
+        if (this.currentSource === 'rule34') {
+          post = downloadType === 'video'
+            ? await this.apiService.getVideoPost(searchTags)
+            : await this.apiService.getRandomPost(searchTags);
+        } else {
+          const type = tags[0] || 'hentai';
+          post = downloadType === 'video'
+            ? await this.phubService.getVideoPost(type)
+            : await this.phubService.getRandomPost(type);
+        }
 
         if (!post) return null;
 

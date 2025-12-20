@@ -1,6 +1,15 @@
-export interface Rule34Post {
+export type Source = 'rule34' | 'phub';
+
+export interface Post {
   id: number;
-  tags: string;
+  file_url: string;
+  width: number;
+  height: number;
+  tags?: string;
+  source?: string;
+}
+
+export interface Rule34Post extends Post {
   created_at: string;
   updated_at: string;
   creator_id: number;
@@ -9,9 +18,6 @@ export interface Rule34Post {
   source: string;
   score: number;
   md5: string;
-  file_url: string;
-  width: number;
-  height: number;
   parent_id?: number;
   sample_url: string;
   sample_width: number;
@@ -47,7 +53,7 @@ export interface DownloadResult {
   error?: string;
   audioChannel?: boolean;
   fileSize?: number;
-  post?: Rule34Post;
+  post?: Post;
 }
 
 export interface BatchDownloadResult {
