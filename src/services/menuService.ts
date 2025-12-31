@@ -3,8 +3,15 @@ import chalk from 'chalk';
 import boxen from 'boxen';
 import ora from 'ora';
 import { CATEGORIES } from '../config/categories';
+import { LocalizationService } from './localizationService';
 
 export class MenuService {
+  private localizationService: LocalizationService;
+
+  constructor(localizationService: LocalizationService) {
+    this.localizationService = localizationService;
+  }
+
   showHeader(source: string = 'Rule34'): void {
     console.clear();
     console.log(chalk.cyan('╔═════════════════════════════════════════════════════════════════╗'));
@@ -16,14 +23,18 @@ export class MenuService {
 
 
   showCategories(categories: any[] = CATEGORIES): void {
-    console.log(chalk.yellow('📁 Kategoriler:'));
+    console.log(chalk.yellow(this.localizationService.get('menu.categories_title')));
     console.log();
 
     categories.forEach(category => {
-      console.log(chalk.green(`${category.id}. ${category.name}`));
+      const catKey = category.name.toLowerCase().replace(/\s+/g, '_');
+      const translatedName = this.localizationService.get(`categories.${catKey}`);
+      const displayName = translatedName.startsWith('categories.') ? category.name : translatedName;
+
+      console.log(chalk.green(`${category.id}. ${displayName}`));
     });
 
-    console.log(chalk.red('0. Çıkış'));
+    console.log(chalk.red(this.localizationService.get('menu.exit')));
     console.log();
   }
 
@@ -32,7 +43,7 @@ export class MenuService {
       {
         type: 'list',
         name: 'source',
-        message: 'Kaynak seçin:',
+        message: this.localizationService.get('menu.source_select'),
         choices: [
           { name: 'rule34', value: 'rule34' },
           { name: 'phub', value: 'phub' }
@@ -43,21 +54,37 @@ export class MenuService {
     return answer.source;
   }
 
+  async getLanguageChoice(): Promise<'tr' | 'en'> {
+    const answer = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'language',
+        message: 'Select Language / Dil Seçin:',
+        choices: [
+          { name: 'Türkçe', value: 'tr' },
+          { name: 'English', value: 'en' }
+        ]
+      }
+    ]);
+
+    return answer.language;
+  }
+
   async getCategoryChoice(maxSpecial: number = 99, numCategories: number = 24): Promise<number> {
     const answer = await inquirer.prompt([
       {
         type: 'input',
         name: 'category',
-        message: `Kategori seçin (0-${numCategories} veya Özel Seçenekler):`,
+        message: this.localizationService.get('menu.category_select', { max: numCategories }),
         validate: (input) => {
           const num = parseInt(input);
-          if (isNaN(num)) return 'Lütfen bir sayı girin!';
+          if (isNaN(num)) return this.localizationService.get('menu.invalid_number');
 
           const isValidCategory = num >= 0 && num <= numCategories;
-          const isValidSpecial = num === 98 || num === 99;
+          const isValidSpecial = num === 97 || num === 98 || num === 99;
 
           if (!isValidCategory && !isValidSpecial) {
-            return `Lütfen 0-${numCategories} arası veya özel seçenekleri (98, 99) girin!`;
+            return this.localizationService.get('menu.invalid_category', { max: numCategories });
           }
           return true;
         }
@@ -85,10 +112,10 @@ export class MenuService {
       {
         type: 'list',
         name: 'type',
-        message: 'İndirme türü seçin:',
+        message: this.localizationService.get('menu.download_type_select'),
         choices: [
-          { name: '🖼️  Resim', value: 'image' },
-          { name: '🎥 Video', value: 'video' }
+          { name: this.localizationService.get('menu.image'), value: 'image' },
+          { name: this.localizationService.get('menu.video'), value: 'video' }
         ]
       }
     ]);
@@ -101,12 +128,12 @@ export class MenuService {
       {
         type: 'input',
         name: 'count',
-        message: chalk.cyan('❯') + ' Kaç adet dosya indirmek istersiniz? (1-50):',
+        message: chalk.cyan('❯') + ' ' + this.localizationService.get('menu.batch_count'),
         default: '1',
         validate: (input) => {
           const num = parseInt(input);
           if (isNaN(num) || num < 1 || num > 50) {
-            return chalk.red('✗ Lütfen 1-50 arasında bir sayı girin!');
+            return chalk.red(this.localizationService.get('menu.invalid_batch_count'));
           }
           return true;
         }
@@ -121,10 +148,10 @@ export class MenuService {
       {
         type: 'input',
         name: 'tags',
-        message: chalk.cyan('❯') + ' Etiketleri girin (boşlukla ayırın):',
+        message: chalk.cyan('❯') + ' ' + this.localizationService.get('menu.enter_tags'),
         validate: (input) => {
           if (!input || input.trim().length === 0) {
-            return chalk.red('✗ En az bir etiket girmelisiniz!');
+            return chalk.red(this.localizationService.get('menu.tags_required'));
           }
           return true;
         }
@@ -156,14 +183,14 @@ export class MenuService {
     while (true) {
       this.showHeader();
       if (selectedTags.length > 0) {
-        console.log(chalk.cyan('  Seçilen etiketler: ') + chalk.bold.yellow(selectedTags.join(' ')) + '\n');
+        console.log(chalk.cyan(this.localizationService.get('menu.selected_tags')) + chalk.bold.yellow(selectedTags.join(' ')) + '\n');
       }
 
       const { searchTerm } = await inquirer.prompt([
         {
           type: 'input',
           name: 'searchTerm',
-          message: chalk.cyan('❯') + ' Aramak istediğin kelimeyi gir (Bitirmek için boş bırak):',
+          message: this.localizationService.get('menu.search_prompt'),
         }
       ]);
 
@@ -172,12 +199,12 @@ export class MenuService {
         return this.getCustomTags();
       }
 
-      const spinner = ora('Hemen bakıyorum...').start();
+      const spinner = ora(this.localizationService.get('menu.searching_spinner')).start();
       const suggestions = await apiService.suggestTags(searchTerm.trim());
       spinner.stop();
 
       if (suggestions.length === 0) {
-        this.showWarning('Öneri bulamadım, başka bir kelime dene.');
+        this.showWarning(this.localizationService.get('menu.no_suggestions'));
         await this.pressEnterToContinue();
         continue;
       }
@@ -186,10 +213,10 @@ export class MenuService {
         {
           type: 'list',
           name: 'choice',
-          message: 'İstediğin etiketi seç (Enter):',
+          message: this.localizationService.get('menu.select_tag'),
           choices: [
             ...suggestions.map((tag: string) => ({ name: tag, value: tag })),
-            { name: chalk.dim('⬅ Geri / Vazgeç'), value: 'BACK' }
+            { name: chalk.dim(this.localizationService.get('menu.back_option')), value: 'BACK' }
           ]
         }
       ]);
@@ -203,7 +230,7 @@ export class MenuService {
           {
             type: 'confirm',
             name: 'addMore',
-            message: 'Yanına başka etiket de eklemek ister misin?',
+            message: this.localizationService.get('menu.add_more_tags'),
             default: false
           }
         ]);
@@ -220,7 +247,7 @@ export class MenuService {
       {
         type: 'input',
         name: 'continue',
-        message: 'Devam etmek için Enter\'a basın...'
+        message: this.localizationService.get('menu.press_enter')
       }
     ]);
   }
@@ -229,7 +256,7 @@ export class MenuService {
     console.clear();
 
     const box = boxen(
-      chalk.bold.cyan('📊 İNDİRME İSTATİSTİKLERİ'),
+      chalk.bold.cyan(this.localizationService.get('stats.title')),
       {
         padding: 1,
         margin: 1,
@@ -242,23 +269,23 @@ export class MenuService {
     console.log(box);
 
     if (stats.totalDownloads === 0) {
-      console.log(chalk.yellow('\n  Henüz indirme yapılmamış.\n'));
+      console.log(chalk.yellow(`\n${this.localizationService.get('stats.no_downloads')}\n`));
       return;
     }
 
-    console.log(chalk.bold.green('  📦 Genel Bilgiler:'));
+    console.log(chalk.bold.green(this.localizationService.get('stats.general_info')));
     console.log(chalk.dim('  ' + '─'.repeat(50)));
-    console.log(chalk.white(`  Toplam İndirme: ${chalk.bold.cyan(stats.totalDownloads)} dosya`));
-    console.log(chalk.white(`  Toplam Boyut: ${chalk.bold.cyan(statsService.formatBytes(stats.totalSize))}`));
+    console.log(chalk.white(this.localizationService.get('stats.total_downloads', { count: stats.totalDownloads })));
+    console.log(chalk.white(this.localizationService.get('stats.total_size', { size: statsService.formatBytes(stats.totalSize) })));
 
     if (stats.firstDownload) {
-      console.log(chalk.white(`  İlk İndirme: ${chalk.dim(statsService.getRelativeTime(stats.firstDownload))}`));
+      console.log(chalk.white(this.localizationService.get('stats.first_download', { time: chalk.dim(statsService.getRelativeTime(stats.firstDownload)) })));
     }
     if (stats.lastDownload) {
-      console.log(chalk.white(`  Son İndirme: ${chalk.dim(statsService.getRelativeTime(stats.lastDownload))}`));
+      console.log(chalk.white(this.localizationService.get('stats.last_download', { time: chalk.dim(statsService.getRelativeTime(stats.lastDownload)) })));
     }
 
-    console.log(chalk.bold.yellow('\n  🏆 Kategori Dağılımı:'));
+    console.log(chalk.bold.yellow(`\n${this.localizationService.get('stats.category_dist')}`));
     console.log(chalk.dim('  ' + '─'.repeat(50)));
 
     const sortedCategories = Object.entries(stats.categoryStats)
@@ -273,16 +300,16 @@ export class MenuService {
       console.log(chalk.white(`  ${index + 1}. ${category.padEnd(15)} ${chalk.green(bar)} ${chalk.bold(count)} (${percentage}%)`));
     });
 
-    console.log(chalk.bold.magenta('\n  📸 Tip Dağılımı:'));
+    console.log(chalk.bold.magenta(`\n${this.localizationService.get('stats.type_dist')}`));
     console.log(chalk.dim('  ' + '─'.repeat(50)));
 
     const imageCount = stats.typeStats.image || 0;
     const videoCount = stats.typeStats.video || 0;
-    const imagePercentage = ((imageCount / stats.totalDownloads) * 100).toFixed(1);
-    const videoPercentage = ((videoCount / stats.totalDownloads) * 100).toFixed(1);
+    const imagePercentage = stats.totalDownloads > 0 ? ((imageCount / stats.totalDownloads) * 100).toFixed(1) : '0.0';
+    const videoPercentage = stats.totalDownloads > 0 ? ((videoCount / stats.totalDownloads) * 100).toFixed(1) : '0.0';
 
-    console.log(chalk.white(`  Resim: ${chalk.bold.cyan(imageCount)} (${imagePercentage}%)`));
-    console.log(chalk.white(`  Video: ${chalk.bold.cyan(videoCount)} (${videoPercentage}%)`));
+    console.log(chalk.white(this.localizationService.get('stats.image_count', { count: imageCount, percentage: imagePercentage })));
+    console.log(chalk.white(this.localizationService.get('stats.video_count', { count: videoCount, percentage: videoPercentage })));
 
     console.log();
   }

@@ -1,4 +1,9 @@
 export type Source = 'rule34' | 'phub';
+export type Language = 'tr' | 'en';
+
+export interface Translations {
+  [key: string]: string | Translations;
+}
 
 export interface Post {
   id: number;
